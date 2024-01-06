@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Flask, request, render_template, redirect, flash, url_for
+from flask import Flask, request, render_template, redirect, url_for
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,7 +16,7 @@ BASE_URL: str = f"{os.environ.get('BASE_URL', '')}:{PORT}"
 
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['SECRET_KEY'] = 'SECRET'
+app.config['SECRET_KEY'] = SECRET_KEY
 
 @app.route('/')
 def homepage():
@@ -32,12 +32,15 @@ def upload_files():
 
     # if there is no file found, respond that no file found
     if 'file_upload_input' not in request.files:
-        flash('No file found to upload')
-        return redirect('/', code = 200)
+        return redirect(location='/', code = 200)
     
     # get list of all the uploaded files
     uploaded_files = request.files.getlist("file_upload_input")
 
+    print(uploaded_files)
+    if len(uploaded_files)  <= 0:
+        return redirect(location=url_for('homepage'), code = 200)
+    
     # get current date to store the uploads in date-wise format 
     folder_name = datetime.today().strftime('%d_%m_%Y')
 
@@ -53,11 +56,16 @@ def upload_files():
     # create through the files in the buffer and save them at the `UPLOAD_FOLDER/{folder_name}` location
     for file in uploaded_files:
         try:
-            file.save(dst= os.path.join(folder_path, file.filename))
+            file_path = os.path.join(folder_path, file.filename)
+            
+            if not os.path.exists(file_path):
+                file.save(dst=file_path)
+            else:
+                file.save(dst = file_path + '_copy')
+
         except Exception as e:
             print(f'error saving the file with exception : {e}')
-            return 'Error occured in saving file'
-    
+            return 'error occured in saving file'
     
     # return the index page with populated data
     return render_template(
@@ -65,9 +73,8 @@ def upload_files():
         uploaded_files = [file.filename for file in uploaded_files]
     )
 
-
 if __name__ == "__main__":
     app.run(
         port = PORT,
-        # debug = True
+        debug = True
     )
